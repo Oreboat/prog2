@@ -12,9 +12,8 @@
 package Tree;
 
 public class Closure extends Node {
-    private Node fun; // a lambda expression
-    private Environment env; // the environment in which
-                             // the function was defined
+    private Node fun;
+    private Environment env;
 
     public Closure(Node f, Environment e) {
         fun = f;
@@ -34,7 +33,6 @@ public class Closure extends Node {
     }
 
     public void print(int n) {
-        // there got to be a more efficient way to print n spaces
         for (int i = 0; i < n; i++)
             System.out.print(' ');
         System.out.println("#{Procedure");
@@ -45,10 +43,36 @@ public class Closure extends Node {
         System.out.println(" }");
     }
 
-    // TODO: The method apply() should be defined in class Node
-    // to report an error. It should be overwritten only in classes
-    // BuiltIn and Closure.
     public Node apply(Node args) {
-        return null;
+        Node params = fun.getCdr().getCar();
+        Node body = fun.getCdr().getCdr();
+        Environment newEnv = new Environment(env);
+
+        Node p = params;
+        Node a = args;
+
+        while (p.isPair()) {
+            if (a.isPair()) {
+                newEnv.define(p.getCar(), a.getCar());
+                p = p.getCdr();
+                a = a.getCdr();
+            } else {
+                System.err.println("Error: too few arguments provided to procedure");
+                return Nil.getInstance();
+            }
+        }
+
+        if (a.isPair()) {
+            System.err.println("Error: too many arguments provided to procedure");
+            return Nil.getInstance();
+        }
+
+        Node res = Nil.getInstance();
+        while (body.isPair()) {
+            res = body.getCar().eval(newEnv);
+            body = body.getCdr();
+        }
+
+        return res;
     }
 }
