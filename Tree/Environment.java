@@ -34,78 +34,77 @@
 package Tree;
 
 public class Environment extends Node {
+    private Node scope;
+    private Environment env;
 
-	// An Environment is implemented like a Cons node, in which
-	// every list element (every frame) is an association list.
-	// Instead of a Nil object, we use null to terminate the list.
+    public Environment() {
+        scope = Nil.getInstance();
+        env = null;
+    }
 
-	private Node scope; // the innermost scope, an association list
-	private Environment env; // the enclosing environment
+    public Environment(Environment e) {
+        scope = Nil.getInstance();
+        env = e;
+    }
 
-	public Environment() {
-		scope = Nil.getInstance();
-		env = null;
-	}
+    public boolean isEnvironment() {
+        return true;
+    }
 
-	public Environment(Environment e) {
-		scope = Nil.getInstance();
-		env = e;
-	}
+    public void print(int n) {
+        for (int i = 0; i < n; i++)
+            System.out.print(' ');
+        System.out.println("#{Environment");
+        if (scope != null)
+            scope.print(Math.abs(n) + 2);
+        if (env != null)
+            env.print(Math.abs(n) + 2);
+        for (int i = 0; i < Math.abs(n); i++)
+            System.out.print(' ');
+        System.out.println('}');
+    }
 
-	public boolean isEnvironment() {
-		return true;
-	}
+    private static Node find(Node id, Node alist) {
+        if (!alist.isPair())
+            return null;
+        else {
+            Node bind = alist.getCar();
+            if (id.getName().equals(bind.getCar().getName()))
+                return bind.getCdr();
+            else
+                return find(id, alist.getCdr());
+        }
+    }
 
-	public void print(int n) {
-		// there got to be a more efficient way to print n spaces
-		for (int i = 0; i < n; i++)
-			System.out.print(' ');
-		System.out.println("#{Environment");
-		if (scope != null)
-			scope.print(Math.abs(n) + 2);
-		if (env != null)
-			env.print(Math.abs(n) + 2);
-		for (int i = 0; i < Math.abs(n); i++)
-			System.out.print(' ');
-		System.out.println('}');
-	}
+    public Node lookup(Node id) {
+        Node val = find(id, scope);
+        if (val == null && env == null) {
+            System.err.println("Error: undefined variable " + id.getName());
+            return Nil.getInstance();
+        } else if (val == null)
+            return env.lookup(id);
+        else
+            return val.getCar();
+    }
 
-	// This is not in an object-oriented style, it's more or less a
-	// translation of the Scheme assq function.
-	private static Node find(Node id, Node alist) {
-		if (!alist.isPair())
-			return null; // in Scheme we'd return #f
-		else {
-			Node bind = alist.getCar();
-			if (id.getName().equals(bind.getCar().getName()))
-				// return a list containing the value as only element
-				return bind.getCdr();
-			else
-				return find(id, alist.getCdr());
-		}
-	}
+    public void define(Node id, Node val) {
+        Node pair = find(id, scope);
+        if (pair != null) {
+            pair.setCar(val);
+        } else {
+            Node newBinding = new Cons(id, new Cons(val, Nil.getInstance()));
+            scope = new Cons(newBinding, scope);
+        }
+    }
 
-	public Node lookup(Node id) {
-		Node val = find(id, scope);
-		if (val == null && env == null) {
-			System.out.println("undefined variable");
-			return Nil.getInstance();
-		} else if (val == null)
-			// look up the identifier in the enclosing scope
-			return env.lookup(id);
-		else
-			// get the value out of the list we got from find()
-			return val.getCar();
-	}
-
-	public void define(Node id, Node val) {
-		// TODO: implement this function
-	}
-
-	public void assign(Node id, Node val) {
-		// TODO: implement this function
-
-		// You can use find() to get a list containing the value and
-		// then update the value using setCar()
-	}
+    public void assign(Node id, Node val) {
+        Node pair = find(id, scope);
+        if (pair != null) {
+            pair.setCar(val);
+        } else if (env != null) {
+            env.assign(id, val);
+        } else {
+            System.err.println("Error: undefined variable " + id.getName());
+        }
+    }
 }
