@@ -1,76 +1,75 @@
-// Scheme4101 -- The main program of the Scheme interpreter.
-
 import Parse.Scanner;
 import Parse.Parser;
 import Tokens.Token;
 import Tokens.TokenType;
-import Tree.Node;
+import Tree.*;
 
 public class Scheme4101 {
 
-	// private static Environment env = null;
+    private static Environment builtinEnv = null;
+    private static Environment globalEnv = null;
 
-	// private static final String prompt = "Scheme4101> ";
-	// private static final String prompt = "> ";
+    public static void main(String argv[]) {
 
-	// private static final String ini_file = "ini.scm";
+        Scanner scanner = new Scanner(System.in);
 
-	public static void main(String argv[]) {
+        if (argv.length > 1 || (argv.length == 1 && !argv[0].equals("-d"))) {
+            System.err.println("Usage: java Scheme4101 [-d]");
+            System.exit(1);
+        }
 
-		// Create scanner that reads from standard input
-		Scanner scanner = new Scanner(System.in);
+        if (argv.length == 1 && argv[0].equals("-d")) {
+            Token tok = scanner.getNextToken();
+            while (tok != null) {
+                TokenType tt = tok.getType();
+                System.out.print(tt.name());
+                if (tt == TokenType.INT)
+                    System.out.println(", intVal = " + tok.getIntVal());
+                else if (tt == TokenType.STRING)
+                    System.out.println(", strVal = " + tok.getStrVal());
+                else if (tt == TokenType.IDENT)
+                    System.out.println(", name = " + tok.getName());
+                else
+                    System.out.println();
+                tok = scanner.getNextToken();
+            }
+            System.exit(0);
+        }
 
-		if (argv.length > 1 ||
-				(argv.length == 1 && !argv[0].equals("-d"))) {
-			System.err.println("Usage: java Scheme4101 [-d]");
-			System.exit(1);
-		}
+        Parser parser = new Parser(scanner);
 
-		// If command line option -d is provided, debug the scanner
-		if (argv.length == 1 && argv[0].equals("-d")) {
+        builtinEnv = new Environment();
+        globalEnv = new Environment(builtinEnv);
+        BuiltIn.setGlobalEnv(globalEnv);
 
-			Token tok = scanner.getNextToken();
-			while (tok != null) {
-				TokenType tt = tok.getType();
+        String[] primitives = {
+            "symbol?", "number?", "procedure?", "null?", "pair?", "eq?",
+            "car", "cdr", "cons", "set-car!", "set-cdr!",
+            "b+", "b-", "b*", "b/", "b=", "b<",
+            "read", "write", "display", "newline",
+            "eval", "apply", "interaction-environment", "load"
+        };
 
-				System.out.print(tt.name());
-				if (tt == TokenType.INT)
-					System.out.println(", intVal = " + tok.getIntVal());
-				else if (tt == TokenType.STRING)
-					System.out.println(", strVal = " + tok.getStrVal());
-				else if (tt == TokenType.IDENT)
-					System.out.println(", name = " + tok.getName());
-				else
-					System.out.println();
+        for (String name : primitives) {
+            builtinEnv.define(new Ident(name), new BuiltIn(new Ident(name)));
+        }
 
-				tok = scanner.getNextToken();
-			}
-			System.exit(0);
-		}
+        Node loadSym = new Ident("load");
+        Node iniFile = new StrLit("ini.scm");
+        Node loadCall = new Cons(loadSym, new Cons(iniFile, Nil.getInstance()));
+        loadCall.eval(globalEnv);
 
-		// Create parser
-		Parser parser = new Parser(scanner);
-		Node root;
-
-		// TODO: Create and populate the built-in environment and
-		// create the top-level environment
-
-		// env = new Environment();
-		// BuiltIn.setGlobalEnv(env);
-		//
-		// populate the environment with BuiltIns and the code from ini.scm
-		//
-		// env = new Environment(env);
-		// BuiltIn.setGlobalEnv(env);
-
-		// Read-eval-print loop
-
-		// TODO: print prompt and evaluate the expression
-		root = parser.parseExp();
-		while (root != null) {
-			root.print(0);
-			root = parser.parseExp();
-		}
-		System.exit(0);
-	}
+        while (true) {
+            System.out.print("> ");
+            Node root = parser.parseExp();
+            if (root == null) {
+                break;
+            }
+            Node result = root.eval(globalEnv);
+            if (result != null && !result.isNull()) {
+                result.print(0);
+            }
+        }
+        System.exit(0);
+    }
 }
