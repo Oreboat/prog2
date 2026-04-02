@@ -15,21 +15,20 @@
 
 package Tree;
 
+import java.io.*;
+import Parse.Parser;
+import Parse.Scanner;
+
 public class BuiltIn extends Node {
-    // TODO: For allowing the built-in functions to access the environment,
-    // keep a copy of the Environment here and synchronize it with
-    // class Scheme4101.
-
-    // private static Environment globalEnv = null;
-    //
-    // public static void setGlobalEnv(Environment env) {
-    // globalEnv = env;
-    // }
-
     private Node symbol;
+    private static Environment globalEnv = null;
 
     public BuiltIn(Node s) {
         symbol = s;
+    }
+
+    public static void setGlobalEnv(Environment env) {
+        globalEnv = env;
     }
 
     public Node getSymbol() {
@@ -41,8 +40,7 @@ public class BuiltIn extends Node {
     }
 
     public void print(int n) {
-        // there got to be a more efficient way to print n spaces
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < Math.abs(n); i++)
             System.out.print(' ');
         System.out.print("#{Built-in Procedure ");
         if (symbol != null)
@@ -52,36 +50,63 @@ public class BuiltIn extends Node {
             System.out.println();
     }
 
-    // TODO: The method apply() should be defined in class Node
-    // to report an error. It should be overwritten only in classes
-    // BuiltIn and Closure.
     public Node apply(Node args) {
-        return null;
+        String name = symbol.getName();
+        Node arg1 = args.getCar();
+        Node arg2 = args.getCdr().getCar();
+
+        if (name.equals("symbol?")) return new BoolLit(arg1.isSymbol());
+        if (name.equals("number?")) return new BoolLit(arg1.isNumber());
+        if (name.equals("procedure?")) return new BoolLit(arg1.isProcedure());
+        if (name.equals("null?")) return new BoolLit(arg1.isNull());
+        if (name.equals("pair?")) return new BoolLit(arg1.isPair());
+
+        if (name.equals("car")) return arg1.getCar();
+        if (name.equals("cdr")) return arg1.getCdr();
+        if (name.equals("cons")) return new Cons(arg1, arg2);
+        if (name.equals("set-car!")) { arg1.setCar(arg2); return Nil.getInstance(); }
+        if (name.equals("set-cdr!")) { arg1.setCdr(arg2); return Nil.getInstance(); }
+        if (name.equals("eq?")) return new BoolLit(arg1 == arg2);
+
+        if (name.equals("b+")) return new IntLit(arg1.getVal() + arg2.getVal());
+        if (name.equals("b-")) return new IntLit(arg1.getVal() - arg2.getVal());
+        if (name.equals("b*")) return new IntLit(arg1.getVal() * arg2.getVal());
+        if (name.equals("b/")) return new IntLit(arg1.getVal() / arg2.getVal());
+        if (name.equals("b=")) return new BoolLit(arg1.getVal() == arg2.getVal());
+        if (name.equals("b<")) return new BoolLit(arg1.getVal() < arg2.getVal());
+
+        if (name.equals("read")) {
+            Parser parser = new Parser(new Scanner(System.in));
+            return parser.parseExp();
+        }
+        if (name.equals("write") || name.equals("display")) {
+            arg1.print(0);
+            return Nil.getInstance();
+        }
+        if (name.equals("newline")) {
+            System.out.println();
+            return Nil.getInstance();
+        }
+
+        if (name.equals("eval")) return arg1.eval((Environment) arg2);
+        if (name.equals("apply")) return arg1.apply(arg2);
+        if (name.equals("interaction-environment")) return globalEnv;
+
+        if (name.equals("load")) {
+            if (!arg1.isString()) return Nil.getInstance();
+            try {
+                Parser parser = new Parser(new Scanner(new FileInputStream(arg1.getStrVal())));
+                Node root = parser.parseExp();
+                while (root != null) {
+                    root.eval(globalEnv);
+                    root = parser.parseExp();
+                }
+            } catch (IOException e) {
+                System.err.println("Could not find file " + arg1.getStrVal());
+            }
+            return Nil.getInstance();
+        }
+
+        return Nil.getInstance();
     }
-
-    // The easiest way to implement BuiltIn.apply is as an
-    // if-then-else chain testing for the different names of
-    // the built-in functions.  E.g., here's how load could
-    // be implemented:
-
-    // if (name.equals("load")) {
-    //     if (!arg1.isString()) {
-    //         System.err.println("Error: wrong type of argument");
-    //         return Nil.getInstance();
-    //     }
-    //     String filename = arg1.getStrVal();
-    //     try {
-    //         Scanner scanner = new Scanner(new FileInputStream(filename));
-    //         Parser parser = new Parser(scanner);
-    //
-    //         Node root = parser.parseExp();
-    //         while (root != null) {
-    //             root.eval(globalEnv);
-    //             root = parser.parseExp();
-    //         }
-    //     } catch (IOException e) {
-    //         System.err.println("Could not find file " + filename);
-    //     }
-    //     return Nil.getInstance();  // or Unspecific.getInstance();
-    // }
 }
