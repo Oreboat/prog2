@@ -54,26 +54,29 @@ public class BuiltIn extends Node {
         String name = symbol.getName();
         Node arg1 = args.getCar();
         Node arg2 = args.getCdr().getCar();
+        if (name.equals("symbol?")) return BooleanLit.getInstance(arg1.isSymbol());
+        if (name.equals("number?")) return BooleanLit.getInstance(arg1.isNumber());
+        if (name.equals("procedure?")) return BooleanLit.getInstance(arg1.isProcedure());
+        if (name.equals("null?")) return BooleanLit.getInstance(arg1.isNull());
+        if (name.equals("pair?")) return BooleanLit.getInstance(arg1.isPair());
 
-        if (name.equals("symbol?")) return new BoolLit(arg1.isSymbol());
-        if (name.equals("number?")) return new BoolLit(arg1.isNumber());
-        if (name.equals("procedure?")) return new BoolLit(arg1.isProcedure());
-        if (name.equals("null?")) return new BoolLit(arg1.isNull());
-        if (name.equals("pair?")) return new BoolLit(arg1.isPair());
+
+
+
 
         if (name.equals("car")) return arg1.getCar();
         if (name.equals("cdr")) return arg1.getCdr();
         if (name.equals("cons")) return new Cons(arg1, arg2);
         if (name.equals("set-car!")) { arg1.setCar(arg2); return Nil.getInstance(); }
         if (name.equals("set-cdr!")) { arg1.setCdr(arg2); return Nil.getInstance(); }
-        if (name.equals("eq?")) return new BoolLit(arg1 == arg2);
+        if (name.equals("eq?")) return BooleanLit.getInstance(arg1 == arg2);
 
         if (name.equals("b+")) return new IntLit(arg1.getVal() + arg2.getVal());
         if (name.equals("b-")) return new IntLit(arg1.getVal() - arg2.getVal());
         if (name.equals("b*")) return new IntLit(arg1.getVal() * arg2.getVal());
         if (name.equals("b/")) return new IntLit(arg1.getVal() / arg2.getVal());
-        if (name.equals("b=")) return new BoolLit(arg1.getVal() == arg2.getVal());
-        if (name.equals("b<")) return new BoolLit(arg1.getVal() < arg2.getVal());
+        if (name.equals("b=")) return BooleanLit.getInstance(arg1.getVal() == arg2.getVal());
+        if (name.equals("b<")) return BooleanLit.getInstance(arg1.getVal() < arg2.getVal());
 
         if (name.equals("read")) {
             Parser parser = new Parser(new Scanner(System.in));

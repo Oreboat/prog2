@@ -21,10 +21,9 @@
 
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [
-            #programming toolkit
-            javaPackages.compiler.openjdk25
+            jre11_minimal
+            zulu25
 
-            #programs
             vscodium
           ];
         };
