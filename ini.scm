@@ -1,52 +1,106 @@
-(define (eqv? x y)
-  (if (and (number? x) (number? y)) (b= x y)
-      (eq? x y)))
+(define (integer? x) (b-integer? x))
+(define (rational? x) (and (pair? x) (eq? (car x) 'rational)))
+(define (number? x) (or (integer? x) (rational? x)))
 
-(define (b> x y) (b< y x))
-(define (b<= x y) (or (b= x y) (b< x y)))
-(define (b>= x y) (or (b= x y) (b> x y)))
+(define (numerator x) (if (integer? x) x (cadr x)))
+(define (denominator x) (if (integer? x) 1 (caddr x)))
+
+(define (abs x) (if (b< x 0) (b- 0 x) x))
+
+(define (quotient n d)
+  (let ((an (abs n)) (ad (abs d)))
+    (letrec ((iter (lambda (a b) (if (b< a b) 0 (b+ 1 (iter (b- a b) b))))))
+      (let ((res (iter an ad)))
+        (if (eq? (b< n 0) (b< d 0)) res (b- 0 res))))))
+
+(define (remainder n d)
+  (let ((an (abs n)) (ad (abs d)))
+    (letrec ((iter (lambda (a b) (if (b< a b) a (iter (b- a b) b)))))
+      (let ((res (iter an ad)))
+        (if (b< n 0) (b- 0 res) res)))))
+
+(define (gcd a b) (if (b= b 0) (abs a) (gcd b (remainder a b))))
+(define (lcm a b) (if (or (b= a 0) (b= b 0)) 0 (abs (b* (quotient a (gcd a b)) b))))
+
+(define (simplify n d)
+  (let ((g (gcd n d)))
+    (let ((nn (quotient n g)) (dd (quotient d g)))
+      (let ((fn (if (b< dd 0) (b- 0 nn) nn))
+            (fd (if (b< dd 0) (b- 0 dd) dd)))
+        (if (b= fd 1) fn (list 'rational fn fd))))))
+
+(define (+ x . l)
+  (letrec ((add2 (lambda (a b)
+                   (simplify (b+ (b* (numerator a) (denominator b))
+                                 (b* (numerator b) (denominator a)))
+                             (b* (denominator a) (denominator b))))))
+    (if (null? l) x (add2 x (apply + l)))))
+
+(define (* x . l)
+  (letrec ((mul2 (lambda (a b)
+                   (simplify (b* (numerator a) (numerator b))
+                             (b* (denominator a) (denominator b))))))
+    (if (null? l) x (mul2 x (apply * l)))))
+
+(define (- x . l)
+  (letrec ((sub2 (lambda (a b)
+                   (simplify (b- (b* (numerator a) (denominator b))
+                                 (b* (numerator b) (denominator a)))
+                             (b* (denominator a) (denominator b))))))
+    (if (null? l) (simplify (b- 0 (numerator x)) (denominator x))
+        (sub2 x (apply + l)))))
+
+(define (/ x . l)
+  (letrec ((div2 (lambda (a b)
+                   (simplify (b* (numerator a) (denominator b))
+                             (b* (denominator a) (numerator b))))))
+    (if (null? l) (div2 1 x)
+        (div2 x (apply * l)))))
 
 (define (= x y . l)
-  (if (null? l) (b= x y)
-      (and (b= x y) (apply = (cons y l)))))
+  (let ((val (b= (b* (numerator x) (denominator y)) (b* (numerator y) (denominator x)))))
+    (if (null? l) val (and val (apply = (cons y l))))))
 
 (define (< x y . l)
-  (if (null? l) (b< x y)
-      (and (b< x y) (apply < (cons y l)))))
+  (let ((val (b< (b* (numerator x) (denominator y)) (b* (numerator y) (denominator x)))))
+    (if (null? l) val (and val (apply < (cons y l))))))
 
-(define (> x y . l)
-  (if (null? l) (b> x y)
-      (and (b> x y) (apply > (cons y l)))))
+(define (> x y . l) (apply < (cons y (cons x l))))
+(define (<= x y . l) (or (apply = (cons x (cons y l))) (apply < (cons x (cons y l)))))
+(define (>= x y . l) (or (apply = (cons x (cons y l))) (apply > (cons x (cons y l)))))
 
-(define (<= x y . l)
-  (if (null? l) (b<= x y)
-      (and (b<= x y) (apply <= (cons y l)))))
+(define (max x . l) (if (null? l) x (let ((m (apply max l))) (if (< x m) m x))))
+(define (min x . l) (if (null? l) x (let ((m (apply min l))) (if (< x m) x m))))
 
-(define (>= x y . l)
-  (if (null? l) (b>= x y)
-      (and (b>= x y) (apply >= (cons y l)))))
+(define (zero? x) (= x 0))
+(define (positive? x) (< 0 x))
+(define (negative? x) (< x 0))
 
-(define (zero? x) (b= x 0))
-(define (positive? x) (b< 0 x))
-(define (negative? x) (b< x 0))
+(define (eqv? x y)
+  (cond ((and (number? x) (number? y)) (= x y))
+        (else (eq? x y))))
 
-(define (+ . l)
-  (if (null? l) 0
-      (b+ (car l) (apply + (cdr l)))))
+(define (equal? x y)
+  (cond ((eqv? x y) #t)
+        ((and (pair? x) (pair? y)) (and (equal? (car x) (car y)) (equal? (cdr x) (cdr y))))
+        (else #f)))
 
-; - is not implemented correctly
-(define (- . l)
-  (if (null? l) 0
-      (b- (car l) (apply - (cdr l)))))
+(define (assq x l) (if (null? l) #f (if (eq? x (caar l)) (car l) (assq x (cdr l)))))
+(define (assv x l) (if (null? l) #f (if (eqv? x (caar l)) (car l) (assv x (cdr l)))))
+(define (assoc x l) (if (null? l) #f (if (equal? x (caar l)) (car l) (assoc x (cdr l)))))
 
-(define (* . l)
-  (if (null? l) 1
-      (b* (car l) (apply * (cdr l)))))
+(define (w x)
+  (cond ((rational? x) (display (numerator x)) (display "/") (display (denominator x)))
+        ((pair? x) (display "(") 
+                   (let loop ((curr x))
+                     (w (car curr))
+                     (if (not (null? (cdr curr))) (begin (display " ") (loop (cdr curr)))))
+                   (display ")"))
+        (else (display x))))
 
 (define (not b) (if b #f #t))
 (define (and x y) (if x y #f))
 (define (or x y) (if x #t y))
-
 (define (caar x) (car (car x)))
 (define (cadr x) (car (cdr x)))
 (define (cdar x) (cdr (car x)))
@@ -68,29 +122,15 @@
 (define (caddar x) (car (cdr (cdr (car x)))))
 (define (cadddr x) (car (cdr (cdr (cdr x)))))
 (define (cdaaar x) (cdr (car (car (car x)))))
-(define (cdaadr x) (cdr (car (car (cdr x)))))
+(define (cdaadr x) (car (car (car (cdr x)))))
 (define (cdadar x) (cdr (car (cdr (car x)))))
 (define (cdaddr x) (cdr (car (cdr (cdr x)))))
 (define (cddaar x) (cdr (cdr (car (car x)))))
 (define (cddadr x) (cdr (cdr (car (cdr x)))))
 (define (cdddar x) (cdr (cdr (cdr (car x)))))
 (define (cddddr x) (cdr (cdr (cdr (cdr x)))))
-
 (define (list . l) l)
-
-(define (length l)
-  (if (null? l) 0
-      (b+ 1 (length (cdr l)))))
-
-; n-ary map not yet implemented
-(define (map f l)
-  (if (null? l) '()
-      (cons (f (car l)) (map f (cdr l)))))
-
-; n-ary for-each not yet implemented
-(define (for-each f l)
-  (if (null? l) '()
-      (begin (f (car l)) (for-each f (cdr l)))))
-
-(define (eof-object? x)
-  (eq? x 'end-of-file))
+(define (length l) (if (null? l) 0 (b+ 1 (length (cdr l)))))
+(define (map f l) (if (null? l) '() (cons (f (car l)) (map f (cdr l)))))
+(define (for-each f l) (if (null? l) '() (begin (f (car l)) (for-each f (cdr l)))))
+(define (eof-object? x) (eq? x 'end-of-file))
